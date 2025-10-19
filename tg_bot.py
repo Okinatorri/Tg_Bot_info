@@ -1,42 +1,45 @@
 import os
 from flask import Flask, request, jsonify
+from aiogram import Bot, Dispatcher, types
 import asyncio
 
-from aiogram import Bot, Dispatcher, types
-
-
-TOKEN = os.environ.get("BOT_TOKEN")  # токен из Render Environment
+TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("Telegram token is not set in environment variables!")
+    raise ValueError("Telegram token is not set!")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 app = Flask(__name__)
 
+# ==========================
 # Команда /start
+# ==========================
 @dp.message()
 async def cmd_start(message: types.Message):
     await message.answer("Привет! 👋 Бот запущен на Render через Webhook.")
 
-# Webhook для Telegram
-@app.route('/webhook', methods=['POST'])
+# ==========================
+# Webhook
+# ==========================
+@app.route("/webhook", methods=["POST"])
 def webhook():
-    # Получаем JSON из запроса (не await!)
-    update = types.Update.model_validate(request.get_json())
-    
-    # feed_update асинхронный, но Flask sync -> используем asyncio.run
-    asyncio.run(dp.feed_update(bot, update))
-    
-    return "ok"  # Telegram ждёт любой 200-ответ
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "no data"}), 400
 
-# Проверка доступности сервера
-@app.route("/", methods=["GET"])
+    update = types.Update.model_validate(data)
+    
+    # Здесь не asyncio.run, а безопасный способ через loop
+    loop = asyncio.get_event_loop()
+    loop.create_task(dp.feed_update(bot, update))
+
+    return jsonify({"status": "ok"}), 200
+
+@app.route("/")
 def index():
     return "Bot is running!"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
-
-
-
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
