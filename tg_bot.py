@@ -20,10 +20,11 @@ async def cmd_start(message: types.Message):
     await message.answer("Привет! 👋 Бот запущен на Render через Webhook.")
 
 @app.route("/webhook", methods=["POST"])
-async def webhook():
-    update = types.Update.model_validate(await request.get_json())
-    await dp.feed_update(bot, update)
+def webhook():
+    update = types.Update.model_validate(request.get_json())
+    asyncio.run(dp.feed_update(bot, update))
     return "ok", 200
+
 
 @app.route("/")
 def home():
@@ -35,3 +36,4 @@ async def on_startup():
 if __name__ == "__main__":
     asyncio.run(on_startup())
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+
