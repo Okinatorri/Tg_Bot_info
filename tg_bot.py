@@ -1,36 +1,35 @@
 import asyncio
-import os
-from flask import Flask, request
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram.filters import CommandStart
+from flask import Flask, request
+import os
 
-API_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_URL = os.getenv("RENDER_EXTERNAL_URL", "") + "/webhook"
-
-bot = Bot(token=API_TOKEN)
+TOKEN = os.getenv("BOT_TOKEN")  # токен из переменных окружения Render
+bot = Bot(token=TOKEN)
 dp = Dispatcher()
 app = Flask(__name__)
 
-loop = asyncio.get_event_loop()  # создаём event loop один раз
+# === Команда /start ===
+@dp.message(CommandStart())
+async def start_cmd(message: types.Message):
+    await message.answer("✅ Бот успешно запущен на Render!")
 
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    await message.answer("Привет! 👋 Бот запущен на Render через Webhook.")
+# === Flask endpoint ===
+@app.route('/')
+def index():
+    return "Bot is running!"
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    update = types.Update.model_validate(request.get_json())
-    asyncio.ensure_future(dp.feed_update(bot, update), loop=loop)
-    return "ok", 200
+@app.route('/webhook', methods=['POST'])
+async def webhook():
+    update = types.Update.model_validate(await request.get_json())
+    await dp.feed_update(bot, update)
+    return {"ok": True}
 
-@app.route("/")
-def home():
-    return "Бот работает через Render ✅"
-
+# === Установка вебхука ===
 async def on_startup():
-    await bot.set_webhook(WEBHOOK_URL)
-    print(f"Webhook установлен: {WEBHOOK_URL}")
+    webhook_url = "https://angel-camp.onrender.com/webhook"
+    await bot.set_webhook(webhook_url)
 
-if __name__ == "__main__":
-    loop.run_until_complete(on_startup())
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+if __name__ == '__main__':
+    asyncio.run(on_startup())  # ставим вебхук
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
