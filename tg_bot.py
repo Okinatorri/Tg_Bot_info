@@ -30,12 +30,14 @@ def webhook():
 
     update = types.Update.model_validate(data)
 
-    # Создаем новый loop для этого потока
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.create_task(dp.feed_update(bot, update))
+    # запускаем и ждем завершения апдейта
+    loop.run_until_complete(dp.feed_update(bot, update))
+    loop.close()
 
     return jsonify({"status": "ok"}), 200
+
 
 @app.route("/")
 def index():
@@ -44,3 +46,4 @@ def index():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
