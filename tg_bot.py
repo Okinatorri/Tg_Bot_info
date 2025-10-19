@@ -1,8 +1,10 @@
 from flask import Flask, request
 import asyncio
 from aiogram import Bot, Dispatcher, types
+import os
 
 
+TOKEN = os.environ.get("BOT_TOKEN")  # токен берём из Render
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
@@ -31,4 +33,5 @@ def index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
+
 
