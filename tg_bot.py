@@ -29,9 +29,10 @@ def webhook():
         return jsonify({"status": "no data"}), 400
 
     update = types.Update.model_validate(data)
-    
-    # Здесь не asyncio.run, а безопасный способ через loop
-    loop = asyncio.get_event_loop()
+
+    # Создаем новый loop для этого потока
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     loop.create_task(dp.feed_update(bot, update))
 
     return jsonify({"status": "ok"}), 200
