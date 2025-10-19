@@ -1,40 +1,62 @@
-from flask import Flask, request, jsonify
-import asyncio
 import os
+import asyncio
+from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
+import logging
 
-# Получаем токен из переменной окружения
-TOKEN = os.environ.get("BOT_TOKEN")
+# ---------------- Логи ----------------
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ---------------- Переменные ----------------
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TOKEN:
-    raise ValueError("BOT_TOKEN не найден в переменных окружения!")
+    raise ValueError("TELEGRAM_TOKEN не найден в переменных окружения!")
 
-app = Flask(__name__)
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Например: https://your-app.onrender.com/webhook
 
-# Создаем бота и диспетчер
+# ---------------- Инициализация ----------------
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+app = FastAPI()
 
-# Берем глобальный event loop
-loop = asyncio.get_event_loop()
-
-
-# Пример команды /start
+# ---------------- Хендлеры ----------------
 @dp.message()
-async def cmd_start(message: types.Message):
-    await message.answer("Привет! 👋 Бот запущен на Render через Webhook.")
+async def start_handler(message: types.Message):
+    await message.answer("Привет! Я минимальный бот на FastAPI и Aiogram 3 🎉")
+
+@dp.message()
+async def echo_handler(message: types.Message):
+    # Просто повторяем текст
+    await message.answer(f"Ты написал: {message.text}")
 
 
-# Webhook обработчик
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.get_json()
-    update = types.Update.model_validate(data)
+# ---------------- FastAPI ----------------
+@app.on_event("startup")
+async def startup():
+    # Инициализация диспетчера
+    await dp.startup()
+    # Устанавливаем webhook
+    if WEBHOOK_URL:
+        await bot.set_webhook(WEBHOOK_URL)
+        logger.info(f"Webhook установлен: {WEBHOOK_URL}")
 
-    # feed_update запускаем через create_task, loop живой, не закрываем его
-    asyncio.create_task(dp.feed_update(bot, update))
+@app.on_event("shutdown")
+async def shutdown():
+    await dp.shutdown()
+    await bot.session.close()
 
-    return jsonify({"status": "ok"}), 200
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    update = types.Update(**data)
+    # Обработка update через диспетчер
+    await dp.feed_update(bot, update)
+    return {"status": "ok"}
 
 
+# ---------------- Запуск локально ----------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
