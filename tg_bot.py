@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # ---------------- Инициализация бота ----------------
-application = Application.builder().token(TOKEN).build()
-app = FastAPI()
+# Создаем Application асинхронно
+application = None
 
 # ---------------- Команда /start ----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -29,27 +29,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text)
 
-# ---------------- Добавляем хендлеры ----------------
-application.add_handler(CommandHandler("start", start))
-
 # ---------------- FastAPI ----------------
+app = FastAPI()
+
 @app.on_event("startup")
 async def startup():
     """Запуск приложения"""
+    global application
+    
+    # Инициализируем бота
+    application = Application.builder().token(TOKEN).build()
+    
+    # Добавляем хендлеры
+    application.add_handler(CommandHandler("start", start))
+    
+    # Инициализируем приложение
     await application.initialize()
     
     # Настраиваем вебхук
-    webhook_url = "https://angel-camp.onrender.com/webhook"
+    webhook_url = "https://angel-camp.onrender.com/webhook"  # Замените на ваш URL
     await application.bot.set_webhook(webhook_url)
     logger.info(f"Webhook установлен: {webhook_url}")
+    logger.info("Бот запущен!")
 
 @app.post("/webhook")
 async def webhook(request: Request):
     """Обработчик вебхуков от Telegram"""
-    data = await request.json()
-    update = Update.de_json(data, application.bot)
-    await application.process_update(update)
-    return {"status": "ok"}
+    try:
+        data = await request.json()
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Ошибка в webhook: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.get("/")
 async def root():
@@ -64,4 +77,3 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
