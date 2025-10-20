@@ -39,7 +39,7 @@ async def startup():
     await application.initialize()
     
     # Настраиваем вебхук
-    webhook_url = "https://your-render-app.onrender.com/webhook"  # Замените на ваш URL
+    webhook_url = "https://angel-camp.onrender.com/webhook"
     await application.bot.set_webhook(webhook_url)
     logger.info(f"Webhook установлен: {webhook_url}")
 
@@ -64,3 +64,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
