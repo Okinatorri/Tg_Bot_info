@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
         await telegram_app.initialize()
         
         # Настраиваем вебхук
-        webhook_url = "https://your-app-name.onrender.com/webhook"  # ЗАМЕНИТЕ на ваш реальный URL
+        webhook_url = "https://angel-camp.onrender.com/webhook"  # ЗАМЕНИТЕ на ваш реальный URL
         await telegram_app.bot.set_webhook(webhook_url)
         
         logger.info("Бот успешно запущен!")
@@ -92,3 +92,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
