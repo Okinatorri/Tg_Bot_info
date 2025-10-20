@@ -5,28 +5,22 @@ from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# ---------------- Логи ----------------
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# ---------------- Переменные ----------------
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# ---------------- Команда /start ----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     welcome_text = (
-        "Привет! 👋\n\n"
-        "Я простой Telegram бот, созданный для демонстрации работы с FastAPI.\n"
-        "На данный момент у меня есть только одна команда - /start\n\n"
-        "Приятного общения! 😊"
+        "Привет! Все работает нормально."
     )
     await update.message.reply_text(welcome_text)
 
-# ---------------- Инициализация приложения ----------------
+
 telegram_app = None
 
 @asynccontextmanager
@@ -35,17 +29,17 @@ async def lifespan(app: FastAPI):
     global telegram_app
     
     try:
-        # Инициализируем Telegram приложение
+        
         telegram_app = Application.builder().token(TOKEN).build()
         
-        # Добавляем обработчики
+        
         telegram_app.add_handler(CommandHandler("start", start))
         
-        # Инициализируем
+        
         await telegram_app.initialize()
         
-        # Настраиваем вебхук
-        webhook_url = "https://angel-camp.onrender.com/webhook"  # ЗАМЕНИТЕ на ваш реальный URL!
+        # Настр
+        webhook_url = "https://angel-camp.onrender.com/webhook" 
         await telegram_app.bot.set_webhook(webhook_url)
         
         logger.info("Бот успешно запущен!")
@@ -92,3 +86,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
