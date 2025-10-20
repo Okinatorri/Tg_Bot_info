@@ -21,10 +21,7 @@ RENDER_URL = "https://angel-camp.onrender.com"  # ЗАМЕНИТЕ на ваш �
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     welcome_text = (
-        "Привет! 👋\n\n"
-        "Я простой Telegram бот, созданный для демонстрации работы с FastAPI.\n"
-        "На данный момент у меня есть только одна команда - /start\n\n"
-        "Приятного общения! 😊"
+        "Привет! Все работает нормально."
     )
     await update.message.reply_text(welcome_text)
 
@@ -115,3 +112,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
