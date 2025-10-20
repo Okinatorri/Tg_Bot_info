@@ -1,62 +1,66 @@
 import os
-import asyncio
-from fastapi import FastAPI, Request
-from aiogram import Bot, Dispatcher, types
 import logging
+from fastapi import FastAPI, Request
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 # ---------------- Логи ----------------
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 # ---------------- Переменные ----------------
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-if not TOKEN:
-    raise ValueError("TELEGRAM_TOKEN не найден в переменных окружения!")
 
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Например: https://your-app.onrender.com/webhook
-
-# ---------------- Инициализация ----------------
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
+# ---------------- Инициализация бота ----------------
+application = Application.builder().token(TOKEN).build()
 app = FastAPI()
 
-# ---------------- Хендлеры ----------------
-@dp.message()
-async def start_handler(message: types.Message):
-    await message.answer("Привет! Я минимальный бот на FastAPI и Aiogram 3 🎉")
+# ---------------- Команда /start ----------------
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик команды /start"""
+    welcome_text = (
+        "Привет! 👋\n\n"
+        "Я простой Telegram бот, созданный для демонстрации работы с FastAPI.\n"
+        "На данный момент у меня есть только одна команда - /start\n\n"
+        "Приятного общения! 😊"
+    )
+    await update.message.reply_text(welcome_text)
 
-@dp.message()
-async def echo_handler(message: types.Message):
-    # Просто повторяем текст
-    await message.answer(f"Ты написал: {message.text}")
-
+# ---------------- Добавляем хендлеры ----------------
+application.add_handler(CommandHandler("start", start))
 
 # ---------------- FastAPI ----------------
 @app.on_event("startup")
 async def startup():
-    # Инициализация диспетчера
-    await dp.startup()
-    # Устанавливаем webhook
-    if WEBHOOK_URL:
-        await bot.set_webhook(WEBHOOK_URL)
-        logger.info(f"Webhook установлен: {WEBHOOK_URL}")
-
-@app.on_event("shutdown")
-async def shutdown():
-    await dp.shutdown()
-    await bot.session.close()
-
+    """Запуск приложения"""
+    await application.initialize()
+    
+    # Настраиваем вебхук
+    webhook_url = "https://your-render-app.onrender.com/webhook"  # Замените на ваш URL
+    await application.bot.set_webhook(webhook_url)
+    logger.info(f"Webhook установлен: {webhook_url}")
 
 @app.post("/webhook")
 async def webhook(request: Request):
+    """Обработчик вебхуков от Telegram"""
     data = await request.json()
-    update = types.Update(**data)
-    # Обработка update через диспетчер
-    await dp.feed_update(bot, update)
+    update = Update.de_json(data, application.bot)
+    await application.process_update(update)
     return {"status": "ok"}
 
+@app.get("/")
+async def root():
+    """Корневой маршрут для проверки работы сервера"""
+    return {"message": "Telegram Bot is running!"}
 
-# ---------------- Запуск локально ----------------
+@app.get("/health")
+async def health_check():
+    """Маршрут для проверки здоровья приложения"""
+    return {"status": "healthy"}
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    uvicorn.run(app, host="0.0.0.0", port=8000)
