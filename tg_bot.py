@@ -1,5 +1,6 @@
 import os
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
@@ -14,10 +15,6 @@ logger = logging.getLogger(__name__)
 # ---------------- Переменные ----------------
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# ---------------- Инициализация бота ----------------
-# Создаем Application асинхронно
-application = None
-
 # ---------------- Команда /start ----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
@@ -29,36 +26,54 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text)
 
-# ---------------- FastAPI ----------------
-app = FastAPI()
+# ---------------- Инициализация приложения ----------------
+telegram_app = None
 
-@app.on_event("startup")
-async def startup():
-    """Запуск приложения"""
-    global application
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global telegram_app
     
-    # Инициализируем бота
-    application = Application.builder().token(TOKEN).build()
+    try:
+        # Инициализируем Telegram приложение
+        telegram_app = Application.builder().token(TOKEN).build()
+        
+        # Добавляем обработчики
+        telegram_app.add_handler(CommandHandler("start", start))
+        
+        # Инициализируем
+        await telegram_app.initialize()
+        
+        # Настраиваем вебхук
+        webhook_url = "https://your-app-name.onrender.com/webhook"  # ЗАМЕНИТЕ на ваш реальный URL
+        await telegram_app.bot.set_webhook(webhook_url)
+        
+        logger.info("Бот успешно запущен!")
+        logger.info(f"Webhook установлен: {webhook_url}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка при запуске бота: {e}")
+        raise
     
-    # Добавляем хендлеры
-    application.add_handler(CommandHandler("start", start))
+    yield
     
-    # Инициализируем приложение
-    await application.initialize()
-    
-    # Настраиваем вебхук
-    webhook_url = "https://angel-camp.onrender.com/webhook"  # Замените на ваш URL
-    await application.bot.set_webhook(webhook_url)
-    logger.info(f"Webhook установлен: {webhook_url}")
-    logger.info("Бот запущен!")
+    # Shutdown
+    if telegram_app:
+        await telegram_app.shutdown()
+
+# ---------------- FastAPI ----------------
+app = FastAPI(lifespan=lifespan)
 
 @app.post("/webhook")
 async def webhook(request: Request):
     """Обработчик вебхуков от Telegram"""
+    if telegram_app is None:
+        return {"status": "error", "message": "Application not initialized"}
+    
     try:
         data = await request.json()
-        update = Update.de_json(data, application.bot)
-        await application.process_update(update)
+        update = Update.de_json(data, telegram_app.bot)
+        await telegram_app.process_update(update)
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Ошибка в webhook: {e}")
